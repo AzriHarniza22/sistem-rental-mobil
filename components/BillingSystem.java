@@ -46,7 +46,7 @@ public class BillingSystem implements IBillingSystem {
             if (reservation != null) {
                 CarDetails car = carMgr.getCarInfo(reservation.carId);
                 if (car != null) {
-                    return car.price * extension.getDays();
+                    return car.price * (extension.getDays() - 1); // Kurangi 1 untuk menghitung hari tambahan yang benar
                 }
             }
         }

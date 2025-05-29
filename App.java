@@ -7,9 +7,10 @@ public class App {
     public static void main(String[] args) {
         CarMgr carMgr = new CarMgr();
         CustomerMgr custMgr = new CustomerMgr();
-        BillingSystem billing = new BillingSystem();
+        ReservationMgr reservationMgr = new ReservationMgr(carMgr);
+        BillingSystem billing = new BillingSystem(carMgr, reservationMgr);
         
-        ReservationSystem system = new ReservationSystem(carMgr, custMgr, billing);
+        ReservationSystem reservationSystem = new ReservationSystem(carMgr, reservationMgr);
         Scanner sc = new Scanner(System.in);
 
         try {
@@ -25,7 +26,7 @@ public class App {
                 } else if (role.equalsIgnoreCase("admin")) {
                     adminMenu(carMgr, custMgr, sc);
                 } else if (role.equalsIgnoreCase("pelanggan")) {
-                    customerMenu(system, carMgr, custMgr, sc);
+                    customerMenu(reservationMgr, reservationSystem, carMgr, custMgr, billing, sc);
                 } else {
                     System.out.println("Pilihan tidak valid. Silakan coba lagi.");
                 }
@@ -40,6 +41,7 @@ public class App {
         while (adminLoggedIn) {
             System.out.println("\n===== MENU ADMIN =====");
             System.out.println("1. Tambah Mobil\n2. Edit Mobil\n3. Hapus Mobil\n4. Lihat Mobil\n5. Lihat Pelanggan\n6. Logout");
+            System.out.println("Pilihan: ");
             String choice = sc.nextLine();
             switch (choice) {
                 case "1":
@@ -65,11 +67,11 @@ public class App {
                     break;
                 case "4":
                     System.out.println("\nDaftar Mobil:");
-                    carMgr.listCars().forEach(c -> System.out.println(c.carId + " - " + c.model + " - Rp" + c.price + "/hari"));
+                    carMgr.listCars().forEach(c -> System.out.println(c.carId + " - " + c.model + " (" + c.type + ") " + " - Rp" + c.price + "/hari"));
                     break;
                 case "5":
                     System.out.println("\nDaftar Pelanggan:");
-                    custMgr.getAllCustomers().forEach(c -> System.out.println(c.toString()));
+                    custMgr.listCustomers().forEach(c -> System.out.println(c.customerId + " - " + c.name + " - " + c.email));
                     break;
                 case "6":
                     adminLoggedIn = false;
@@ -81,12 +83,31 @@ public class App {
         }
     }
 
-    private static void customerMenu(ReservationSystem system, CarMgr carMgr, CustomerMgr custMgr, Scanner sc) {
+    private static void customerMenu(ReservationMgr reservationMgr, ReservationSystem reservationSystem, CarMgr carMgr, CustomerMgr custMgr, BillingSystem billing, Scanner sc) {
         System.out.print("Nama: "); String name = sc.nextLine();
         System.out.print("Email: "); String email = sc.nextLine();
-        String custId = custMgr.registerCustomer(name, email);
-        CustomerDetails customer = custMgr.getCustomerDetails(custId);
-        System.out.println("Berhasil login sebagai pelanggan. ID: " + custId);
+        
+        // Cek apakah customer sudah ada berdasarkan email
+        String custId = null;
+        CustomerDetails existingCustomer = null;
+        for (CustomerDetails customer : custMgr.listCustomers()) {
+            if (customer.email.equals(email)) {
+                custId = customer.customerId;
+                existingCustomer = customer;
+                break;
+            }
+        }
+        
+        // Jika belum ada, register sebagai customer baru
+        if (custId == null) {
+            custId = custMgr.registerCustomer(name, email);
+            existingCustomer = custMgr.getCustomer(custId);
+            System.out.println("Berhasil mendaftar sebagai pelanggan baru. ID: " + custId);
+        } else {
+            System.out.println("Selamat datang kembali! ID: " + custId);
+        }
+        
+        CustomerDetails customer = existingCustomer;
 
         boolean customerLoggedIn = true;
         String currentResRef = null;
@@ -95,19 +116,25 @@ public class App {
             System.out.println("\n===== MENU PELANGGAN =====");
             System.out.println("Selamat datang, " + customer.name);
             System.out.println("1. Buat Reservasi\n2. Mulai Sewa\n3. Selesai Sewa\n4. Perpanjang Sewa\n5. Logout");
+            System.out.println("Pilihan: ");
             String choice = sc.nextLine();
             
             switch (choice) {
                 case "1":
-                    currentResRef = makeReservation(system, carMgr, custId, sc);
+                    currentResRef = makeReservation(reservationSystem, carMgr, custId, billing, sc);
                     break;
                 case "2":
                     if (currentResRef == null) {
                         System.out.println("Anda belum membuat reservasi!");
                     } else {
-                        String plate = system.startCarRental(currentResRef);
+                        String plate = reservationMgr.startCarRental(currentResRef);
                         if (plate != null) {
                             System.out.println("Sewa Mobil dimulai. Plat: " + plate);
+                            // Update car availability
+                            ReservationDetails reservation = reservationMgr.getReservation(currentResRef);
+                            if (reservation != null) {
+                                carMgr.updateCarAvailability(reservation.carId, false);
+                            }
                         } else {
                             System.out.println("Gagal memulai sewa.");
                         }
@@ -117,12 +144,19 @@ public class App {
                     if (currentResRef == null) {
                         System.out.println("Anda belum membuat reservasi!");
                     } else {
-                        boolean success = system.endCarRental(currentResRef);
-                        if (success) {
-                            System.out.println("Sewa mobil berhasil diselesaikan.");
-                            currentResRef = null;
+                        ReservationDetails reservation = reservationMgr.getReservation(currentResRef);
+                        if (reservation == null) {
+                            System.out.println("Reservasi tidak ditemukan.");
+                        } else if (!"ACTIVE".equals(reservation.status)) {
+                            System.out.println("Sewa belum dimulai. Mulai sewa terlebih dahulu.");
                         } else {
-                            System.out.println("Gagal menyelesaikan sewa.");
+                            boolean success = reservationMgr.endCarRental(currentResRef);
+                            if (success) {
+                                System.out.println("Sewa mobil berhasil diselesaikan.");
+                                currentResRef = null;
+                            } else {
+                                System.out.println("Gagal menyelesaikan sewa.");
+                            }
                         }
                     }
                     break;
@@ -134,14 +168,13 @@ public class App {
                         String newEndDate = sc.nextLine();
                         
                         // Dapatkan informasi perpanjangan terlebih dahulu
-                        RentalDetails rental = system.getReservationDetails(currentResRef);
-                        if (rental == null) {
+                        ReservationDetails reservation = reservationMgr.getReservation(currentResRef);
+                        if (reservation == null) {
                             System.out.println("Reservasi tidak ditemukan.");
                             break;
                         }
                         
-                        CarDetails car = carMgr.getCarInfo(rental.carId);
-                        DateRange extensionRange = new DateRange(rental.dateRange.endDate, newEndDate);
+                        DateRange extensionRange = new DateRange(reservation.dateRange.endDate, newEndDate);
                         int additionalDays = extensionRange.getDays() - 1;
                         
                         if (additionalDays <= 0) {
@@ -149,16 +182,22 @@ public class App {
                             break;
                         }
                         
-                        double additionalCost = car.price * additionalDays;
+                        double additionalCost = billing.calculateAdditionalCharges(currentResRef, extensionRange);
                         
                         System.out.println("Biaya perpanjangan " + additionalDays + " hari: Rp" + additionalCost);
                         System.out.print("Setuju dengan biaya perpanjangan? (ya/tidak): ");
                         String confirm = sc.nextLine();
                         
                         if (confirm.equalsIgnoreCase("ya")) {
-                            boolean success = system.extendRental(currentResRef, newEndDate);
+                            boolean success = reservationMgr.extendRental(currentResRef, newEndDate);
                             if (success) {
                                 System.out.println("Sewa berhasil diperpanjang hingga " + newEndDate);
+                                
+                                // Generate bill for extension
+                                String billId = billing.createBillRequest(custId, currentResRef, additionalCost);
+                                if (billId != null) {
+                                    billing.processBillPayment(billId);
+                                }
                             } else {
                                 System.out.println("Gagal memperpanjang sewa.");
                             }
@@ -177,7 +216,7 @@ public class App {
         }
     }
     
-    private static String makeReservation(ReservationSystem system, CarMgr carMgr, String custId, Scanner sc) {
+    private static String makeReservation(ReservationSystem reservationSystem, CarMgr carMgr, String custId, BillingSystem billing, Scanner sc) {
         System.out.println("\nMobil Tersedia:");
         CarDetails[] list = carMgr.getAvailableCars("");
         if (list.length == 0) {
@@ -186,8 +225,9 @@ public class App {
         }
         
         for (int i = 0; i < list.length; i++) {
-            System.out.println((i + 1) + ". " + list[i].model + " - Rp" + list[i].price + "/hari");
+            System.out.println((i + 1) + ". " + list[i].model + " (" + list[i].type + ") - Rp" + list[i].price + "/hari");
         }
+
         
         System.out.print("Pilih (nomor): ");
         int pilih = Integer.parseInt(sc.nextLine()) - 1;
@@ -203,8 +243,8 @@ public class App {
         DateRange dr = new DateRange(start, end);
         
         // Hitung dan tampilkan total biaya sebelum konfirmasi
+        double totalCost = reservationSystem.calculateReservationCost(chosen.carId, dr);
         int totalDays = dr.getDays();
-        double totalCost = chosen.price * totalDays;
         
         System.out.println("\n===== DETAIL RESERVASI =====");
         System.out.println("Mobil: " + chosen.model + " (" + chosen.type + ")");
@@ -217,10 +257,26 @@ public class App {
         
         if (confirm.equalsIgnoreCase("ya")) {
             try {
-                String resRef = system.reserveCar(custId, chosen.carId, dr);
-                System.out.println("Reservasi Berhasil. Kode: " + resRef);
-                return resRef;
-            } catch (IllegalArgumentException e) {
+                // Create reservation using new structure
+                ReservationDetails reservation = new ReservationDetails(custId, chosen.carId, dr);
+                
+                // Validate and create reservation
+                if (reservationSystem.checkReservationAvailability(chosen.carId, dr)) {
+                    String resRef = reservationSystem.createReservationRequest(reservation);
+                    if (resRef != null) {
+                        // Generate bill
+                        String billId = billing.createBillRequest(custId, resRef, totalCost);
+                        if (billId != null) {
+                            billing.processBillPayment(billId);
+                        }
+                        
+                        System.out.println("Reservasi Berhasil. Kode: " + resRef);
+                        return resRef;
+                    }
+                }
+                System.out.println("Gagal membuat reservasi. Mobil mungkin tidak tersedia.");
+                return null;
+            } catch (Exception e) {
                 System.out.println("Error: " + e.getMessage());
                 return null;
             }

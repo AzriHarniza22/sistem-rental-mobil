@@ -9,6 +9,14 @@ public class CustomerMgr implements ICustomerMgt {
 
     @Override
     public String registerCustomer(String name, String email) {
+        // Cek apakah customer dengan email yang sama sudah ada
+        for (CustomerDetails customer : customers.values()) {
+            if (customer.email.equals(email)) {
+                return customer.customerId; // Return ID yang sudah ada
+            }
+        }
+        
+        // Jika belum ada, buat customer baru
         String id = "CUST" + new Random().nextInt(10000);
         CustomerDetails customer = new CustomerDetails(id, name, email);
         customers.put(id, customer);
