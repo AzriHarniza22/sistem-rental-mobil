@@ -1,0 +1,39 @@
+context ICarMgt::getAvailableCars(match: String): CarDetails[]
+pre: match != null
+post: result->forAll(car | car.available = true)
+post: result->forAll(car | car.model.toLowerCase().contains(match.toLowerCase()))
+
+context ICarMgt::getCarInfo(carId: String): CarDetails
+pre: carId != null and carId <> ''
+post: (result = null) or (result.carId = carId)
+
+context ICarMgt::updateCarAvailability(carId: String, available: Boolean): Boolean
+pre: carId != null and carId <> ''
+post: result implies getCarInfo(carId).available = available
+
+context ICarMgt::addCar(car: CarDetails): Boolean
+pre: car != null
+pre: car.carId != null and car.carId <> ''
+pre: car.model != null and car.model <> ''
+pre: car.type != null
+pre: car.price > 0
+post: result implies listCars()->includes(car)
+
+context ICarMgt::editCar(carId: String, model: String, type: String, price: Double): Boolean
+pre: carId != null and carId <> ''
+pre: getCarInfo(carId) != null
+post: result implies 
+    (model <> null implies getCarInfo(carId).model = model) and
+    (type <> null implies getCarInfo(carId).type = type) and
+    (price <> null implies getCarInfo(carId).price = price)
+
+context ICarMgt::deleteCar(carId: String): Boolean
+pre: carId != null and carId <> ''
+post: result implies not listCars()->exists(car | car.carId = carId)
+
+context ICarMgt::listCars(): List<CarDetails>
+post: result != null
+
+
+
+

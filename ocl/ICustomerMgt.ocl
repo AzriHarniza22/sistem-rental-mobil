@@ -1,0 +1,13 @@
+context ICustomerMgt::registerCustomer(name: String, email: String): String
+pre: name != null and name <> ''
+pre: email != null and email <> ''
+pre: email.indexOf('@') > 0 and email.indexOf('.') > email.indexOf('@')
+post: result != null and result <> ''
+post: result.startsWith('CUST')
+post: getCustomer(result) <> null
+post: getCustomer(result).contains(name) and getCustomer(result).contains(email)
+
+context ICustomerMgt::getCustomer(customerId: String): String
+pre: customerId != null and customerId <> ''
+
+

@@ -1,0 +1,27 @@
+context IManageReservation::getReservation(resRef: String): RentalDetails
+pre: resRef != null and resRef <> ''
+
+context IManageReservation::startCarRental(resRef: String): String
+pre: resRef != null and resRef <> ''
+pre: getReservation(resRef) != null
+pre: not getReservation(resRef).claimed
+post: if result <> null then
+        getReservation(resRef).claimed = true and
+        result.contains('Plate-' + getReservation(resRef).carId)
+      endif
+
+context IManageReservation::endCarRental(resRef: String): Boolean
+pre: resRef != null and resRef <> ''
+pre: getReservation(resRef) != null
+pre: getReservation(resRef).claimed
+post: result implies getReservation(resRef) = null
+
+context IManageReservation::extendRental(resRef: String, newEndDate: String): Boolean
+pre: resRef != null and resRef <> ''
+pre: newEndDate != null and newEndDate <> ''
+pre: getReservation(resRef) != null
+pre: getReservation(resRef).claimed
+pre: LocalDate.parse(newEndDate) > LocalDate.parse(getReservation(resRef).dateRange.endDate)
+post: result implies getReservation(resRef).dateRange.endDate = newEndDate
+
+
