@@ -2,6 +2,10 @@ package components;
 
 import interfaces.*;
 import model.*;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 public class ReservationSystem implements IReservationSystem {
@@ -16,7 +20,54 @@ public class ReservationSystem implements IReservationSystem {
     @Override
     public boolean checkReservationAvailability(String carId, DateRange dateRange) {
         CarDetails car = carMgr.getCarInfo(carId);
-        return car != null && car.available;
+        if (car == null) {
+            return false;
+        }
+        
+        // Cek apakah ada reservasi yang bentrok dengan tanggal yang diminta
+        for (ReservationDetails reservation : reservationMgr.reservations.values()) {
+            if (reservation.carId.equals(carId) && 
+                !reservation.status.equals("CANCELLED") && 
+                !reservation.status.equals("COMPLETED")) {
+                
+                // Cek apakah tanggal bentrok
+                if (isDateRangeOverlap(dateRange, reservation.dateRange)) {
+                    return false; // Ada konflik tanggal
+                }
+            }
+        }
+        
+        return true; // Tidak ada konflik
+    }
+
+    // Method untuk mendapatkan tanggal yang sudah direservasi
+    public List<DateRange> getReservedDates(String carId) {
+        List<DateRange> reservedDates = new ArrayList<>();
+        
+        for (ReservationDetails reservation : reservationMgr.reservations.values()) {
+            if (reservation.carId.equals(carId) && 
+                !reservation.status.equals("CANCELLED") && 
+                !reservation.status.equals("COMPLETED")) {
+                reservedDates.add(reservation.dateRange);
+            }
+        }
+        
+        return reservedDates;
+    }
+
+    // Helper method untuk mengecek overlap tanggal
+    private boolean isDateRangeOverlap(DateRange range1, DateRange range2) {
+        try {
+            LocalDate start1 = LocalDate.parse(range1.startDate);
+            LocalDate end1 = LocalDate.parse(range1.endDate);
+            LocalDate start2 = LocalDate.parse(range2.startDate);
+            LocalDate end2 = LocalDate.parse(range2.endDate);
+            
+            // Tidak overlap jika salah satu range berakhir sebelum yang lain dimulai
+            return !(end1.isBefore(start2) || end2.isBefore(start1));
+        } catch (Exception e) {
+            return true; // Jika error parsing tanggal, anggap ada konflik untuk safety
+        }
     }
 
     @Override

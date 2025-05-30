@@ -1,6 +1,7 @@
 import components.*;
 import model.*;
 
+import java.util.List;
 import java.util.Scanner;
 
 public class App {
@@ -410,6 +411,9 @@ public class App {
         
         CarDetails chosen = list[pilih];
 
+        // Tampilkan tanggal yang sudah direservasi untuk mobil ini
+        showReservedDates(reservationSystem, chosen.carId);
+
         System.out.print("Mulai (YYYY-MM-DD): "); String start = sc.nextLine();
         System.out.print("Selesai (YYYY-MM-DD): "); String end = sc.nextLine();
         DateRange dr = new DateRange(start, end);
@@ -445,8 +449,11 @@ public class App {
                         System.out.println("Reservasi Berhasil. Kode: " + resRef);
                         return resRef;
                     }
+                } else {
+                    System.out.println("Gagal membuat reservasi. Mobil tidak tersedia pada tanggal tersebut.");
+                    return null;
                 }
-                System.out.println("Gagal membuat reservasi. Mobil mungkin tidak tersedia.");
+                System.out.println("Gagal membuat reservasi. Terjadi kesalahan sistem.");
                 return null;
             } catch (Exception e) {
                 System.out.println("Error: " + e.getMessage());
@@ -457,4 +464,24 @@ public class App {
             return null;
         }
     }
+    private static void showReservedDates(ReservationSystem reservationSystem, String carId) {
+        System.out.println("\n===== STATUS RESERVASI MOBIL =====");
+        
+        // Ambil semua tanggal yang sudah direservasi untuk mobil ini
+        List<DateRange> reservedRanges = reservationSystem.getReservedDates(carId);
+        
+        System.out.println("Tanggal yang sudah direservasi:");
+        
+        if (reservedRanges.isEmpty()) {
+            System.out.println("- Belum ada reservasi untuk mobil ini");
+        } else {
+            for (int i = 0; i < reservedRanges.size(); i++) {
+                DateRange range = reservedRanges.get(i);
+                System.out.println("- " + range.startDate + " sampai " + range.endDate + 
+                                " (" + range.getDays() + " hari)");
+            }
+        }
+        
+        System.out.println("=".repeat(40));
+    }  
 }

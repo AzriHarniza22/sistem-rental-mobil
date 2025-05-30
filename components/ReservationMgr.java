@@ -6,7 +6,7 @@ import model.RentalDetails;
 import java.util.*;
 
 public class ReservationMgr implements IReservationMgt {
-    private Map<String, ReservationDetails> reservations = new HashMap<>();
+    Map<String, ReservationDetails> reservations = new HashMap<>();
     private Map<String, List<String>> customerReservations = new HashMap<>();
     private CarMgr carMgr;
 
