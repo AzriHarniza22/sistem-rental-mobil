@@ -3,7 +3,7 @@ package interfaces;
 import model.ReservationDetails;
 import model.DateRange;
 
-public interface IReservationSystem {
+public interface IManageReservation {
     boolean checkReservationAvailability(String carId, DateRange dateRange);
     boolean validateReservationData(ReservationDetails reservation);
     String createReservationRequest(ReservationDetails reservation);

@@ -3,7 +3,7 @@ package interfaces;
 import model.CarDetails;
 import model.DateRange;
 
-public interface ICarSystem {
+public interface IManageCar {
     boolean checkCarAvailability(String carId, DateRange dateRange);
     boolean validateCarData(CarDetails car);
     String createCarRequest(CarDetails car);

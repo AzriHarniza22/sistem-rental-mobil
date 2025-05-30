@@ -8,12 +8,12 @@ import model.DateRange;
 import java.util.*;
 import java.time.LocalDate;
 
-public class ReservationSystem implements IReservationMgt {
+public class ReservationMgr implements IReservationMgt {
     Map<String, ReservationDetails> reservations = new HashMap<>();
     private Map<String, List<String>> customerReservations = new HashMap<>();
     private CarMgr carMgr;
 
-    public ReservationSystem(CarMgr carMgr) {
+    public ReservationMgr(CarMgr carMgr) {
         this.carMgr = carMgr;
     }
 

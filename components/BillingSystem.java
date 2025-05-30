@@ -1,21 +1,21 @@
 package components;
 
-import interfaces.IBillingSystem;
+import interfaces.IBilling;
 import model.*;
 import java.util.Random;
 import java.util.HashMap;
 import java.util.Map;
 
-public class BillingSystem implements IBillingSystem {
+public class BillingSystem implements IBilling {
     private CarMgr carMgr;
-    private ReservationSystem reservationMgr;
+    private ReservationMgr reservationMgr;
     private Map<String, BillingDetails> bills = new HashMap<>();
 
     public BillingSystem() {
         // Default constructor untuk backward compatibility
     }
 
-    public BillingSystem(CarMgr carMgr, ReservationSystem reservationMgr) {
+    public BillingSystem(CarMgr carMgr, ReservationMgr reservationMgr) {
         this.carMgr = carMgr;
         this.reservationMgr = reservationMgr;
     }

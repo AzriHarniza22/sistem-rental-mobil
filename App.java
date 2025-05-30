@@ -11,8 +11,8 @@ public class App {
     public static void main(String[] args) {
         CarMgr carMgr = new CarMgr();
         CustomerMgr custMgr = new CustomerMgr();
-        ReservationSystem reservationMgr = new ReservationSystem(carMgr);
-        RentalMgr rentalMgr = new RentalMgr(reservationMgr, carMgr); // NEW
+        ReservationMgr reservationMgr = new ReservationMgr(carMgr);
+        RentalSystem rentalMgr = new RentalSystem(reservationMgr, carMgr); // NEW
         BillingSystem billing = new BillingSystem(carMgr, reservationMgr);
         
         Scanner sc = new Scanner(System.in);
@@ -246,7 +246,7 @@ public class App {
         return selectCarType(sc, allowEmpty);
     }
 
-    private static void customerMenu(ReservationSystem reservationMgr, RentalMgr rentalMgr, CarMgr carMgr, CustomerMgr custMgr, BillingSystem billing, Scanner sc) {
+    private static void customerMenu(ReservationMgr reservationMgr, RentalSystem rentalMgr, CarMgr carMgr, CustomerMgr custMgr, BillingSystem billing, Scanner sc) {
         System.out.print("Nama: "); String name = sc.nextLine();
         System.out.print("Email: "); String email = sc.nextLine();
         
@@ -372,7 +372,7 @@ public class App {
         }
     }
     
-    private static String makeReservation(ReservationSystem reservationMgr, CarMgr carMgr, String custId, BillingSystem billing, Scanner sc) {
+    private static String makeReservation(ReservationMgr reservationMgr, CarMgr carMgr, String custId, BillingSystem billing, Scanner sc) {
         System.out.println("\nMobil Tersedia:");
         CarDetails[] list = carMgr.getAvailableCars("");
         if (list.length == 0) {
@@ -455,7 +455,7 @@ public class App {
             return null;
         }
     }
-    private static void showReservedDates(ReservationSystem reservationMgr, String carId) {
+    private static void showReservedDates(ReservationMgr reservationMgr, String carId) {
         System.out.println("\n===== STATUS RESERVASI MOBIL =====");
         
         List<DateRange> reservedRanges = reservationMgr.getReservedDates(carId); // UPDATED

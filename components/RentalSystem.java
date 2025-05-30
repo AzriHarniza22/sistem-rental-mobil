@@ -1,17 +1,17 @@
 package components;
 
-import interfaces.IRentalSystem;
+import interfaces.IRental;
 import model.CarDetails;
 import model.DateRange;
 import model.ReservationDetails;
 import java.util.*;
 
-public class RentalMgr implements IRentalSystem {
-    private ReservationSystem reservationMgr;
+public class RentalSystem implements IRental {
+    private ReservationMgr reservationMgr;
     private CarMgr carMgr;
     private Map<String, String> activeRentals = new HashMap<>(); // reservationId -> plateNumber
 
-    public RentalMgr(ReservationSystem reservationMgr, CarMgr carMgr) {
+    public RentalSystem(ReservationMgr reservationMgr, CarMgr carMgr) {
         this.reservationMgr = reservationMgr;
         this.carMgr = carMgr;
     }

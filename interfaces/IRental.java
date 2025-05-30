@@ -2,7 +2,7 @@ package interfaces;
 
 import model.DateRange;
 
-public interface IRentalSystem {
+public interface IRental {
     boolean checkRentalStatus(String reservationId);
     double calculateRentalCost(String reservationId, DateRange extension);
     boolean updateRentalStatus(String reservationId, String status);
