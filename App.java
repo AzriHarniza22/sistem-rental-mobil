@@ -4,6 +4,9 @@ import model.*;
 import java.util.Scanner;
 
 public class App {
+    // Valid car types
+    private static final String[] VALID_CAR_TYPES = {"sedan", "suv", "pickup"};
+    
     public static void main(String[] args) {
         CarMgr carMgr = new CarMgr();
         CustomerMgr custMgr = new CustomerMgr();
@@ -45,29 +48,16 @@ public class App {
             String choice = sc.nextLine();
             switch (choice) {
                 case "1":
-                    System.out.print("ID: "); String id = sc.nextLine();
-                    System.out.print("Model: "); String model = sc.nextLine();
-                    System.out.print("Tipe: "); String type = sc.nextLine();
-                    System.out.print("Harga per hari: "); double price = Double.parseDouble(sc.nextLine());
-                    carMgr.addCar(new CarDetails(id, model, type, true, price));
-                    System.out.println("Mobil berhasil ditambahkan!");
+                    addCarMenu(carMgr, sc);
                     break;
                 case "2":
-                    System.out.print("ID: "); String eid = sc.nextLine();
-                    System.out.print("Model baru: "); String emodel = sc.nextLine();
-                    System.out.print("Tipe baru: "); String etype = sc.nextLine();
-                    System.out.print("Harga per hari baru: "); double eprice = Double.parseDouble(sc.nextLine());
-                    carMgr.editCar(eid, emodel, etype, eprice);
-                    System.out.println("Mobil berhasil diupdate!");
+                    editCarMenu(carMgr, sc);
                     break;
                 case "3":
-                    System.out.print("ID: "); String did = sc.nextLine();
-                    carMgr.deleteCar(did);
-                    System.out.println("Mobil berhasil dihapus!");
+                    deleteCarMenu(carMgr, sc);
                     break;
                 case "4":
-                    System.out.println("\nDaftar Mobil:");
-                    carMgr.listCars().forEach(c -> System.out.println(c.carId + " - " + c.model + " (" + c.type + ") " + " - Rp" + c.price + "/hari"));
+                    displayCarList(carMgr);
                     break;
                 case "5":
                     System.out.println("\nDaftar Pelanggan:");
@@ -81,6 +71,178 @@ public class App {
                     System.out.println("Pilihan tidak valid. Silakan coba lagi.");
             }
         }
+    }
+    
+    private static void addCarMenu(CarMgr carMgr, Scanner sc) {
+        System.out.print("ID: "); 
+        String id = sc.nextLine();
+        
+        // Check if car ID already exists
+        if (carMgr.getCarInfo(id) != null) {
+            System.out.println("Error: ID mobil sudah ada! Gunakan ID yang berbeda.");
+            return;
+        }
+        
+        System.out.print("Model: "); 
+        String model = sc.nextLine();
+        
+        String type = selectCarType(sc);
+        if (type == null) {
+            System.out.println("Gagal menambah mobil: Tipe tidak valid.");
+            return;
+        }
+        
+        System.out.print("Harga per hari: "); 
+        double price;
+        try {
+            price = Double.parseDouble(sc.nextLine());
+            if (price <= 0) {
+                System.out.println("Error: Harga harus lebih dari 0.");
+                return;
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("Error: Format harga tidak valid.");
+            return;
+        }
+        
+        carMgr.addCar(new CarDetails(id, model, type, true, price));
+        System.out.println("Mobil berhasil ditambahkan!");
+    }
+    
+    private static void editCarMenu(CarMgr carMgr, Scanner sc) {
+        System.out.println("\n===== DAFTAR MOBIL =====");
+        displayCarList(carMgr);
+        
+        System.out.print("\nMasukkan ID mobil yang akan diedit: "); 
+        String eid = sc.nextLine();
+        
+        // Check if car exists
+        CarDetails existingCar = carMgr.getCarInfo(eid);
+        if (existingCar == null) {
+            System.out.println("Error: Mobil dengan ID '" + eid + "' tidak ditemukan!");
+            return;
+        }
+        
+        System.out.println("\nData mobil saat ini:");
+        System.out.println("ID: " + existingCar.carId);
+        System.out.println("Model: " + existingCar.model);
+        System.out.println("Tipe: " + existingCar.type.toUpperCase());
+        System.out.println("Harga: Rp" + existingCar.price + "/hari");
+        System.out.println("Status: " + (existingCar.available ? "Tersedia" : "Disewa"));
+        
+        System.out.print("\nModel baru (kosong = tidak berubah): "); 
+        String emodel = sc.nextLine();
+        if (emodel.trim().isEmpty()) emodel = null;
+        
+        System.out.println("\nPilih tipe baru (kosong = tidak berubah):");
+        String etype = selectCarType(sc, true);
+        
+        System.out.print("Harga per hari baru (kosong = tidak berubah): "); 
+        String priceInput = sc.nextLine();
+        Double eprice = null;
+        if (!priceInput.trim().isEmpty()) {
+            try {
+                eprice = Double.parseDouble(priceInput);
+                if (eprice <= 0) {
+                    System.out.println("Error: Harga harus lebih dari 0.");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Error: Format harga tidak valid.");
+                return;
+            }
+        }
+        
+        boolean success = carMgr.editCar(eid, emodel, etype, eprice);
+        if (success) {
+            System.out.println("Mobil berhasil diupdate!");
+        } else {
+            System.out.println("Gagal mengupdate mobil.");
+        }
+    }
+    
+    private static void deleteCarMenu(CarMgr carMgr, Scanner sc) {
+        System.out.println("\n===== DAFTAR MOBIL =====");
+        displayCarList(carMgr);
+        
+        System.out.print("\nMasukkan ID mobil yang akan dihapus: "); 
+        String did = sc.nextLine();
+        
+        // Check if car exists
+        CarDetails existingCar = carMgr.getCarInfo(did);
+        if (existingCar == null) {
+            System.out.println("Error: Mobil dengan ID '" + did + "' tidak ditemukan!");
+            return;
+        }
+        
+        System.out.println("Mobil yang akan dihapus: " + existingCar.model + " (" + existingCar.type.toUpperCase() + ")");
+        System.out.print("Yakin ingin menghapus? (ya/tidak): ");
+        String confirm = sc.nextLine();
+        
+        if (confirm.equalsIgnoreCase("ya")) {
+            boolean success = carMgr.deleteCar(did);
+            if (success) {
+                System.out.println("Mobil berhasil dihapus!");
+            } else {
+                System.out.println("Gagal menghapus mobil.");
+            }
+        } else {
+            System.out.println("Penghapusan dibatalkan.");
+        }
+    }
+    
+    private static void displayCarList(CarMgr carMgr) {
+        System.out.println("\nDaftar Mobil:");
+        System.out.println("=".repeat(70));
+        System.out.printf("%-10s %-20s %-10s %-15s %-10s%n", "ID", "Model", "Tipe", "Harga/hari", "Status");
+        System.out.println("=".repeat(70));
+        
+        carMgr.listCars().forEach(c -> 
+            System.out.printf("%-10s %-20s %-10s Rp%-12.0f %-10s%n", 
+                c.carId, 
+                c.model, 
+                c.type.toUpperCase(), 
+                c.price, 
+                c.available ? "Tersedia" : "Disewa"
+            )
+        );
+        System.out.println("=".repeat(70));
+    }
+    
+    private static String selectCarType(Scanner sc) {
+        return selectCarType(sc, false);
+    }
+    
+    private static String selectCarType(Scanner sc, boolean allowEmpty) {
+        System.out.println("\nTipe mobil yang tersedia:");
+        for (int i = 0; i < VALID_CAR_TYPES.length; i++) {
+            System.out.println((i + 1) + ". " + VALID_CAR_TYPES[i].toUpperCase());
+        }
+        if (allowEmpty) {
+            System.out.println("0. Tidak berubah");
+        }
+        
+        System.out.print("Pilih tipe (nomor): ");
+        String input = sc.nextLine();
+        
+        if (allowEmpty && input.trim().isEmpty()) {
+            return null;
+        }
+        
+        try {
+            int choice = Integer.parseInt(input);
+            if (allowEmpty && choice == 0) {
+                return null;
+            }
+            if (choice >= 1 && choice <= VALID_CAR_TYPES.length) {
+                return VALID_CAR_TYPES[choice - 1];
+            }
+        } catch (NumberFormatException e) {
+            // Handle invalid number format
+        }
+        
+        System.out.println("Pilihan tidak valid!");
+        return selectCarType(sc, allowEmpty);
     }
 
     private static void customerMenu(ReservationMgr reservationMgr, ReservationSystem reservationSystem, CarMgr carMgr, CustomerMgr custMgr, BillingSystem billing, Scanner sc) {
@@ -224,9 +386,19 @@ public class App {
             return null;
         }
         
+        System.out.println("=".repeat(60));
+        System.out.printf("%-5s %-20s %-10s %-15s%n", "No.", "Model", "Tipe", "Harga/hari");
+        System.out.println("=".repeat(60));
+        
         for (int i = 0; i < list.length; i++) {
-            System.out.println((i + 1) + ". " + list[i].model + " (" + list[i].type + ") - Rp" + list[i].price + "/hari");
+            System.out.printf("%-5d %-20s %-10s Rp%-12.0f%n", 
+                (i + 1), 
+                list[i].model, 
+                list[i].type.toUpperCase(), 
+                list[i].price
+            );
         }
+        System.out.println("=".repeat(60));
 
         
         System.out.print("Pilih (nomor): ");
@@ -247,7 +419,7 @@ public class App {
         int totalDays = dr.getDays();
         
         System.out.println("\n===== DETAIL RESERVASI =====");
-        System.out.println("Mobil: " + chosen.model + " (" + chosen.type + ")");
+        System.out.println("Mobil: " + chosen.model + " (" + chosen.type.toUpperCase() + ")");
         System.out.println("Tanggal: " + start + " sampai " + end + " (" + totalDays + " hari)");
         System.out.println("Harga per hari: Rp" + chosen.price);
         System.out.println("Total biaya: Rp" + totalCost);
