@@ -1,13 +1,45 @@
-context ICustomerMgt::registerCustomer(name: String, email: String): String
-pre: name != null and name <> ''
-pre: email != null and email <> ''
-pre: email.indexOf('@') > 0 and email.indexOf('.') > email.indexOf('@')
-post: result != null and result <> ''
-post: result.startsWith('CUST')
-post: getCustomer(result) <> null
-post: getCustomer(result).contains(name) and getCustomer(result).contains(email)
+context ICustomerMgt::registerCustomer(name: String, email: String) : String
+pre: name <> null and name <> '' and
+     email <> null and email <> '' and
+     email.matches('[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}') and
+     not Customer.allInstances()->exists(c | c.email = email)
+post: result <> null and result <> '' and
+      Customer.allInstances()->size() = Customer.allInstances()->size()@pre + 1 and
+      Customer.allInstances()->exists(c | 
+        c.customerId = result and
+        c.name = name and
+        c.email = email)
 
-context ICustomerMgt::getCustomer(customerId: String): String
-pre: customerId != null and customerId <> ''
+context ICustomerMgt::getCustomer(customerId: String) : CustomerDetails
+pre: customerId <> null and customerId <> ''
+post: (result <> null implies 
+        result.customerId = customerId and
+        Customer.allInstances()->exists(c | c.customerId = customerId)) and
+      (result = null implies 
+        not Customer.allInstances()->exists(c | c.customerId = customerId))
 
+context ICustomerMgt::updateCustomer(customerId: String, details: CustomerDetails) : boolean
+pre: customerId <> null and customerId <> '' and
+     details <> null and
+     Customer.allInstances()->exists(c | c.customerId = customerId) and
+     (details.name <> null implies details.name <> '') and
+     (details.email <> null implies 
+       details.email <> '' and
+       details.email.matches('[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}') and
+       not Customer.allInstances()->exists(c | c.email = details.email and c.customerId <> customerId))
+post: result = true implies
+      let customer : Customer = Customer.allInstances()->select(c | c.customerId = customerId)->any(true) in
+      (details.name <> null implies customer.name = details.name) and
+      (details.email <> null implies customer.email = details.email) and
+      customer.customerId = customerId and
+      Customer.allInstances()->size() = Customer.allInstances()->size()@pre
 
+context ICustomerMgt::listCustomers() : List<CustomerDetails>
+pre: true
+post: result <> null and
+      result->size() = Customer.allInstances()->size() and
+      result->forAll(customerDetail | 
+        Customer.allInstances()->exists(customer | 
+          customer.customerId = customerDetail.customerId and
+          customer.name = customerDetail.name and
+          customer.email = customerDetail.email))

@@ -1,39 +1,81 @@
-context ICarMgt::getAvailableCars(match: String): CarDetails[]
-pre: match != null
-post: result->forAll(car | car.available = true)
-post: result->forAll(car | car.model.toLowerCase().contains(match.toLowerCase()))
+context ICarMgt::getAvailableCars(filter: String) : CarDetails[]
+pre: filter <> null
+post: result <> null and
+      result->forAll(car | car.available = true) and
+      (filter = '' implies result->size() = Car.allInstances()->select(c | c.available = true)->size()) and
+      (filter <> '' implies result->forAll(car | 
+        car.model.toLower().includes(filter.toLower()) or 
+        car.type.toLower().includes(filter.toLower())))
 
-context ICarMgt::getCarInfo(carId: String): CarDetails
-pre: carId != null and carId <> ''
-post: (result = null) or (result.carId = carId)
+context ICarMgt::getCarInfo(carId: String) : CarDetails
+pre: carId <> null and carId <> ''
+post: (result <> null implies 
+        result.carId = carId and
+        Car.allInstances()->exists(c | c.carId = carId)) and
+      (result = null implies 
+        not Car.allInstances()->exists(c | c.carId = carId))
 
-context ICarMgt::updateCarAvailability(carId: String, available: Boolean): Boolean
-pre: carId != null and carId <> ''
-post: result implies getCarInfo(carId).available = available
+context ICarMgt::addCar(car: CarDetails) : boolean
+pre: car <> null and
+     car.carId <> null and car.carId <> '' and
+     car.model <> null and car.model <> '' and
+     car.type <> null and car.type <> '' and
+     car.price > 0 and
+     not Car.allInstances()->exists(c | c.carId = car.carId)
+post: result = true implies
+      Car.allInstances()->size() = Car.allInstances()->size()@pre + 1 and
+      Car.allInstances()->exists(c | 
+        c.carId = car.carId and
+        c.model = car.model and
+        c.type = car.type and
+        c.price = car.price and
+        c.available = car.available)
 
-context ICarMgt::addCar(car: CarDetails): Boolean
-pre: car != null
-pre: car.carId != null and car.carId <> ''
-pre: car.model != null and car.model <> ''
-pre: car.type != null
-pre: car.price > 0
-post: result implies listCars()->includes(car)
+context ICarMgt::editCar(carId: String, model: String, type: String, price: Double) : boolean
+pre: carId <> null and carId <> '' and
+     model <> null and model <> '' and
+     type <> null and type <> '' and
+     price <> null and price > 0 and
+     Car.allInstances()->exists(c | c.carId = carId)
+post: result = true implies
+      let car : Car = Car.allInstances()->select(c | c.carId = carId)->any(true) in
+      car.model = model and
+      car.type = type and
+      car.price = price and
+      Car.allInstances()->size() = Car.allInstances()->size()@pre
 
-context ICarMgt::editCar(carId: String, model: String, type: String, price: Double): Boolean
-pre: carId != null and carId <> ''
-pre: getCarInfo(carId) != null
-post: result implies 
-    (model <> null implies getCarInfo(carId).model = model) and
-    (type <> null implies getCarInfo(carId).type = type) and
-    (price <> null implies getCarInfo(carId).price = price)
+context ICarMgt::deleteCar(carId: String) : boolean
+pre: carId <> null and carId <> '' and
+     Car.allInstances()->exists(c | c.carId = carId) and
+     not Reservation.allInstances()->exists(r | 
+       r.carId = carId and 
+       Set{'PENDING', 'CONFIRMED'}->includes(r.status))
+post: result = true implies
+      Car.allInstances()->size() = Car.allInstances()->size()@pre - 1 and
+      not Car.allInstances()->exists(c | c.carId = carId)
 
-context ICarMgt::deleteCar(carId: String): Boolean
-pre: carId != null and carId <> ''
-post: result implies not listCars()->exists(car | car.carId = carId)
+context ICarMgt::listCars() : List<CarDetails>
+pre: true
+post: result <> null and
+      result->size() = Car.allInstances()->size() and
+      result->forAll(carDetail | 
+        Car.allInstances()->exists(car | 
+          car.carId = carDetail.carId and
+          car.model = carDetail.model and
+          car.type = carDetail.type and
+          car.price = carDetail.price and
+          car.available = carDetail.available))
 
-context ICarMgt::listCars(): List<CarDetails>
-post: result != null
-
-
-
-
+context ICarMgt::updateCarAvailability(carId: String, available: boolean) : boolean
+pre: carId <> null and carId <> '' and
+     Car.allInstances()->exists(c | c.carId = carId) and
+     (available = false implies 
+       not Reservation.allInstances()->exists(r | 
+         r.carId = carId and 
+         Set{'PENDING', 'CONFIRMED'}->includes(r.status) and
+         r.dateRange.startDate <= Date.now() and
+         r.dateRange.endDate >= Date.now()))
+post: result = true implies
+      let car : Car = Car.allInstances()->select(c | c.carId = carId)->any(true) in
+      car.available = available and
+      car.available <> car.available@pre

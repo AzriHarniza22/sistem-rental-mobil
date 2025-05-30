@@ -1,27 +1,87 @@
-context IManageReservation::getReservation(resRef: String): RentalDetails
-pre: resRef != null and resRef <> ''
+context IReservationMgt::createReservation(reservation: ReservationDetails) : String
+pre: reservation <> null and
+     reservation.customerId <> null and reservation.customerId <> '' and
+     reservation.carId <> null and reservation.carId <> '' and
+     reservation.dateRange <> null and
+     reservation.dateRange.startDate < reservation.dateRange.endDate and
+     reservation.dateRange.startDate >= Date.now() and
+     reservation.totalCost > 0 and
+     Customer.allInstances()->exists(c | c.customerId = reservation.customerId) and
+     Car.allInstances()->exists(car | car.carId = reservation.carId and car.available = true) and
+     not Reservation.allInstances()->exists(r | 
+       r.carId = reservation.carId and 
+       Set{'PENDING', 'CONFIRMED'}->includes(r.status) and
+       r.dateRange.overlaps(reservation.dateRange))
+post: result <> null and result <> '' and
+      Reservation.allInstances()->size() = Reservation.allInstances()->size()@pre + 1 and
+      Reservation.allInstances()->exists(r | 
+        r.reservationId = result and
+        r.customerId = reservation.customerId and
+        r.carId = reservation.carId and
+        r.dateRange = reservation.dateRange and
+        r.totalCost = reservation.totalCost and
+        r.status = 'PENDING')
 
-context IManageReservation::startCarRental(resRef: String): String
-pre: resRef != null and resRef <> ''
-pre: getReservation(resRef) != null
-pre: not getReservation(resRef).claimed
-post: if result <> null then
-        getReservation(resRef).claimed = true and
-        result.contains('Plate-' + getReservation(resRef).carId)
-      endif
+context IReservationMgt::getReservation(reservationId: String) : ReservationDetails
+pre: reservationId <> null and reservationId <> ''
+post: (result <> null implies 
+        result.reservationId = reservationId and
+        Reservation.allInstances()->exists(r | r.reservationId = reservationId)) and
+      (result = null implies 
+        not Reservation.allInstances()->exists(r | r.reservationId = reservationId))
 
-context IManageReservation::endCarRental(resRef: String): Boolean
-pre: resRef != null and resRef <> ''
-pre: getReservation(resRef) != null
-pre: getReservation(resRef).claimed
-post: result implies getReservation(resRef) = null
+context IReservationMgt::updateReservation(reservationId: String, details: ReservationDetails) : boolean
+pre: reservationId <> null and reservationId <> '' and
+     details <> null and
+     Reservation.allInstances()->exists(r | r.reservationId = reservationId) and
+     let reservation : Reservation = Reservation.allInstances()->select(r | r.reservationId = reservationId)->any(true) in
+     Set{'PENDING', 'CONFIRMED'}->includes(reservation.status) and
+     (details.dateRange <> null implies 
+       details.dateRange.startDate < details.dateRange.endDate and
+       details.dateRange.startDate >= Date.now() and
+       not Reservation.allInstances()->exists(r | 
+         r.reservationId <> reservationId and
+         r.carId = reservation.carId and 
+         Set{'PENDING', 'CONFIRMED'}->includes(r.status) and
+         r.dateRange.overlaps(details.dateRange))) and
+     (details.customerId <> null implies 
+       Customer.allInstances()->exists(c | c.customerId = details.customerId)) and
+     (details.carId <> null implies 
+       Car.allInstances()->exists(car | car.carId = details.carId and car.available = true)) and
+     (details.totalCost <> null implies details.totalCost > 0) and
+     (details.status <> null implies Set{'PENDING', 'CONFIRMED', 'CANCELLED'}->includes(details.status))
+post: result = true implies
+      let reservation : Reservation = Reservation.allInstances()->select(r | r.reservationId = reservationId)->any(true) in
+      (details.customerId <> null implies reservation.customerId = details.customerId) and
+      (details.carId <> null implies reservation.carId = details.carId) and
+      (details.dateRange <> null implies reservation.dateRange = details.dateRange) and
+      (details.totalCost <> null implies reservation.totalCost = details.totalCost) and
+      (details.status <> null implies reservation.status = details.status) and
+      reservation.reservationId = reservationId and
+      Reservation.allInstances()->size() = Reservation.allInstances()->size()@pre
 
-context IManageReservation::extendRental(resRef: String, newEndDate: String): Boolean
-pre: resRef != null and resRef <> ''
-pre: newEndDate != null and newEndDate <> ''
-pre: getReservation(resRef) != null
-pre: getReservation(resRef).claimed
-pre: LocalDate.parse(newEndDate) > LocalDate.parse(getReservation(resRef).dateRange.endDate)
-post: result implies getReservation(resRef).dateRange.endDate = newEndDate
+context IReservationMgt::cancelReservation(reservationId: String) : boolean
+pre: reservationId <> null and reservationId <> '' and
+     Reservation.allInstances()->exists(r | r.reservationId = reservationId) and
+     let reservation : Reservation = Reservation.allInstances()->select(r | r.reservationId = reservationId)->any(true) in
+     Set{'PENDING', 'CONFIRMED'}->includes(reservation.status)
+post: result = true implies
+      let reservation : Reservation = Reservation.allInstances()->select(r | r.reservationId = reservationId)->any(true) in
+      reservation.status = 'CANCELLED' and
+      reservation.status@pre <> 'CANCELLED' and
+      Reservation.allInstances()->size() = Reservation.allInstances()->size()@pre
 
-
+context IReservationMgt::getCustomerReservations(customerId: String) : List<ReservationDetails>
+pre: customerId <> null and customerId <> '' and
+     Customer.allInstances()->exists(c | c.customerId = customerId)
+post: result <> null and
+      result->forAll(reservation | reservation.customerId = customerId) and
+      result->size() = Reservation.allInstances()->select(r | r.customerId = customerId)->size() and
+      result->forAll(resDetail | 
+        Reservation.allInstances()->exists(res | 
+          res.reservationId = resDetail.reservationId and
+          res.customerId = resDetail.customerId and
+          res.carId = resDetail.carId and
+          res.dateRange = resDetail.dateRange and
+          res.totalCost = resDetail.totalCost and
+          res.status = resDetail.status))
