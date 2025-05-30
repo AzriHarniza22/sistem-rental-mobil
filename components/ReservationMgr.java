@@ -3,7 +3,10 @@ package components;
 import interfaces.IReservationMgt;
 import model.ReservationDetails;
 import model.RentalDetails;
+import model.CarDetails;
+import model.DateRange;
 import java.util.*;
+import java.time.LocalDate;
 
 public class ReservationMgr implements IReservationMgt {
     Map<String, ReservationDetails> reservations = new HashMap<>();
@@ -18,6 +21,7 @@ public class ReservationMgr implements IReservationMgt {
     public String createReservation(ReservationDetails reservation) {
         String resId = "RES" + new Random().nextInt(10000);
         reservation.reservationId = resId;
+        reservation.status = "CONFIRMED";
         reservations.put(resId, reservation);
         
         // Track customer reservations
@@ -66,40 +70,64 @@ public class ReservationMgr implements IReservationMgt {
         return results;
     }
 
+    // Reservation availability check
+    public boolean checkReservationAvailability(String carId, DateRange dateRange) {
+        for (ReservationDetails reservation : reservations.values()) {
+            if (reservation.carId.equals(carId) && 
+                !reservation.status.equals("CANCELLED") && 
+                !reservation.status.equals("COMPLETED")) {
+                
+                if (isDateRangeOverlap(dateRange, reservation.dateRange)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    // Get reserved dates for a car
+    public List<DateRange> getReservedDates(String carId) {
+        List<DateRange> reservedDates = new ArrayList<>();
+        
+        for (ReservationDetails reservation : reservations.values()) {
+            if (reservation.carId.equals(carId) && 
+                !reservation.status.equals("CANCELLED") && 
+                !reservation.status.equals("COMPLETED")) {
+                reservedDates.add(reservation.dateRange);
+            }
+        }
+        
+        return reservedDates;
+    }
+
+    // Calculate reservation cost
+    public double calculateReservationCost(String carId, DateRange dateRange) {
+        CarDetails car = carMgr.getCarInfo(carId);
+        if (car != null && dateRange != null) {
+            return car.price * dateRange.getDays();
+        }
+        return 0.0;
+    }
+
+    // Helper method for date overlap check
+    private boolean isDateRangeOverlap(DateRange range1, DateRange range2) {
+        try {
+            LocalDate start1 = LocalDate.parse(range1.startDate);
+            LocalDate end1 = LocalDate.parse(range1.endDate);
+            LocalDate start2 = LocalDate.parse(range2.startDate);
+            LocalDate end2 = LocalDate.parse(range2.endDate);
+            
+            return !(end1.isBefore(start2) || end2.isBefore(start1));
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
     // Methods for backward compatibility
     public String makeReservation(RentalDetails res, String custId) {
         ReservationDetails reservation = new ReservationDetails(custId, res.carId, res.dateRange);
+        reservation.totalCost = calculateReservationCost(res.carId, res.dateRange);
         return createReservation(reservation);
-    }
-
-    public String startCarRental(String resRef) {
-        ReservationDetails res = reservations.get(resRef);
-        if (res != null && !"ACTIVE".equals(res.status)) {
-            res.status = "ACTIVE";
-            return "Plate-" + res.carId;
-        }
-        return null;
-    }
-
-    public boolean endCarRental(String resRef) {
-        ReservationDetails res = reservations.get(resRef);
-        if (res != null && "ACTIVE".equals(res.status)) {
-            res.status = "COMPLETED";
-            reservations.remove(resRef);
-            customerReservations.values().forEach(list -> list.remove(resRef));
-            carMgr.updateCarAvailability(res.carId, true);
-            return true;
-        }
-        return false;
-    }
-
-    public boolean extendRental(String resRef, String newEndDate) {
-        ReservationDetails res = reservations.get(resRef);
-        if (res != null && "ACTIVE".equals(res.status)) {
-            res.dateRange.endDate = newEndDate;
-            return true;
-        }
-        return false;
     }
 
     public String getCustomerForReservation(String resRef) {
