@@ -7,11 +7,11 @@ import model.ReservationDetails;
 import java.util.*;
 
 public class RentalMgr implements IRentalSystem {
-    private ReservationMgr reservationMgr;
+    private ReservationSystem reservationMgr;
     private CarMgr carMgr;
     private Map<String, String> activeRentals = new HashMap<>(); // reservationId -> plateNumber
 
-    public RentalMgr(ReservationMgr reservationMgr, CarMgr carMgr) {
+    public RentalMgr(ReservationSystem reservationMgr, CarMgr carMgr) {
         this.reservationMgr = reservationMgr;
         this.carMgr = carMgr;
     }

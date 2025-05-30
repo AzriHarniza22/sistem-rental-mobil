@@ -8,14 +8,14 @@ import java.util.Map;
 
 public class BillingSystem implements IBillingSystem {
     private CarMgr carMgr;
-    private ReservationMgr reservationMgr;
+    private ReservationSystem reservationMgr;
     private Map<String, BillingDetails> bills = new HashMap<>();
 
     public BillingSystem() {
         // Default constructor untuk backward compatibility
     }
 
-    public BillingSystem(CarMgr carMgr, ReservationMgr reservationMgr) {
+    public BillingSystem(CarMgr carMgr, ReservationSystem reservationMgr) {
         this.carMgr = carMgr;
         this.reservationMgr = reservationMgr;
     }
